@@ -1,7 +1,68 @@
 Full-Text Search with PostgreSQL
 
 Dillon Hafer
-@dillonhafer
 https://www.dillonhafer.com
+@dillonhafer
 
-* Starting small
+* Using a basic to_tsvector
+
+  -- Executing query:
+  SELECT ("sections".*)
+  FROM "sections"
+  WHERE (to_tsvector(file_text) @@ to_tsquery('friends'))
+
+  Total query runtime: 2673 ms.
+  9 rows retrieved.
+
+* Now with JOIN
+
+  -- Executing query:
+  SELECT ("sections".*)
+  FROM "sections"
+  INNER JOIN "chapters" ON "sections"."chapter_id" = "chapters"."id"
+  WHERE "chapters"."district_id" = 2
+  AND (to_tsvector(file_text) @@ to_tsquery('friends'))
+
+  Total query runtime: 24944 ms.
+  4 rows retrieved.
+
+* Reading the Postgres docs
+
+There are two kinds of indexes that can be used to speed up full text searches:
+
+- GiST (Generalized Search Tree)-based index. The column can be of tsvector or tsquery type.
+- GIN (Generalized Inverted Index)-based index. The column must be of tsvector type.
+
+* Let's add an index
+
+  CREATE INDEX file_text_idx
+  ON sections
+  USING gin
+  (to_tsvector('english', file_text));
+
+  -- Executing query:
+  Query returned successfully with no result in 3065 ms.
+
+* Using the index
+
+  -- Executing query:
+  SELECT ("sections".*)
+  FROM "sections"
+  INNER JOIN "chapters" ON "sections"."chapter_id" = "chapters"."id"
+  WHERE "chapters"."district_id" = 2
+  AND (to_tsvector('english', file_text) @@ to_tsquery('friends'))
+  Total query runtime: 227 ms.
+  4 rows retrieved.
+
+  -- CACHE Hit in only 14ms afterwards --
+
+  -- Executing query:
+  SELECT ("sections".*)
+  FROM "sections"
+  INNER JOIN "chapters" ON "sections"."chapter_id" = "chapters"."id"
+  WHERE "chapters"."district_id" = 2
+  AND (to_tsvector('english', file_text) @@ to_tsquery('friends'))
+  Total query runtime: 14 ms.
+  4 rows retrieved.
+
+* You will never regret learning how SQL indexes work, experimenting with them, and using them.
