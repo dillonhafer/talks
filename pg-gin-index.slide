@@ -4,36 +4,90 @@ Dillon Hafer
 https://www.dillonhafer.com
 @dillonhafer
 
-* Using a basic to_tsvector
+* Summary (so you can decide if you should get up right now)
+
+- 800 PDFs (about 600,000 words)
+- The PDFs required full text search
+- Postgres has built-in support for full-text search
+- My full-text search was very slow
+- I learned how to use the right index
+- I want to help you do the same
+
+* PostgreSQL's Text Search Types
+
+*tsvector*
+
+- The tsvector type represents a document in a form optimized for text search.
+  SELECT to_tsvector('english', 'The regular lunch program');
+  -----------------
+  'regular':2 'lunch':3
+
+*tsquery*
+
+- A tsquery value stores lexemes that are to be searched for.
+  SELECT 'regular & lunch'::tsquery;
+  ---------------
+  'regular' & 'lunch'
+
+* A simple database structure
+
+1. School District Policy
+
+*has_many*
+
+2. Chapters
+
+*has_many*
+
+3. Sections
+
+.image pg-gin-index/main-view.png
+
+* Using full-text search with to_tsvector
+
+1. Our column ```file_text`` is a ```text`` type
+
+2. We convert the column to a ```tsvector``
 
   -- Executing query:
   SELECT ("sections".*)
   FROM "sections"
-  WHERE (to_tsvector(file_text) @@ to_tsquery('friends'))
+  WHERE (to_tsvector(file_text) @@ to_tsquery('lunch'))
 
   Total query runtime: 2673 ms.
   9 rows retrieved.
 
-* Now with JOIN
+👍 Full-text search works!
+
+👎 Full-text search is slow...
+
+* JOIN doesn't go so well...
+
+.image pg-gin-index/search-loading.png
 
   -- Executing query:
   SELECT ("sections".*)
   FROM "sections"
   INNER JOIN "chapters" ON "sections"."chapter_id" = "chapters"."id"
   WHERE "chapters"."district_id" = 2
-  AND (to_tsvector(file_text) @@ to_tsquery('friends'))
+  AND (to_tsvector(file_text) @@ to_tsquery('lunch'))
 
   Total query runtime: 24944 ms.
   4 rows retrieved.
 
+We need an index
+
 * Reading the Postgres docs
 
-There are two kinds of indexes that can be used to speed up full text searches:
+There are two kinds of indexes that can be used to speed up full-text searches:
 
 - GiST (Generalized Search Tree)-based index. The column can be of tsvector or tsquery type.
 - GIN (Generalized Inverted Index)-based index. The column must be of tsvector type.
 
-* Let's add an index
+GIN searching is 3x faster than GiST
+GiST has the possibility of returning “false matches”
+
+*Let's*use*a*GIN*index*
 
   CREATE INDEX file_text_idx
   ON sections
@@ -43,26 +97,40 @@ There are two kinds of indexes that can be used to speed up full text searches:
   -- Executing query:
   Query returned successfully with no result in 3065 ms.
 
-* Using the index
+* Improved speed for searching
+
+  search_words = "lunch"
+  sections.where(["to_tsvector('english', file_text) @@ to_tsquery('english', ?)", search_words])
+
+.image pg-gin-index/fast-results.png
+
+* Speed metrics
+
+227 ms
 
   -- Executing query:
   SELECT ("sections".*)
   FROM "sections"
   INNER JOIN "chapters" ON "sections"."chapter_id" = "chapters"."id"
   WHERE "chapters"."district_id" = 2
-  AND (to_tsvector('english', file_text) @@ to_tsquery('friends'))
+  AND (to_tsvector('english', file_text) @@ to_tsquery('lunch'))
   Total query runtime: 227 ms.
   4 rows retrieved.
 
-  -- CACHE Hit in only 14ms afterwards --
+14 ms after query is cached
 
   -- Executing query:
   SELECT ("sections".*)
   FROM "sections"
   INNER JOIN "chapters" ON "sections"."chapter_id" = "chapters"."id"
   WHERE "chapters"."district_id" = 2
-  AND (to_tsvector('english', file_text) @@ to_tsquery('friends'))
+  AND (to_tsvector('english', file_text) @@ to_tsquery('lunch'))
   Total query runtime: 14 ms.
   4 rows retrieved.
 
-* You will never regret learning how SQL indexes work, experimenting with them, and using them.
+* Keep learning about the software around you
+
+- Take chances, make mistakes, get messy
+- Above all...
+
+.image pg-gin-index/use-pg.jpg
