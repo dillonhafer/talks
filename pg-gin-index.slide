@@ -85,7 +85,6 @@ There are two kinds of indexes that can be used to speed up full-text searches:
 - GIN (Generalized Inverted Index)-based index. The column must be of tsvector type.
 
 GIN searching is 3x faster than GiST
-GiST has the possibility of returning “false matches”
 
 *Let's*use*a*GIN*index*
 
@@ -104,7 +103,7 @@ GiST has the possibility of returning “false matches”
 
 .image pg-gin-index/fast-results.png
 
-* Speed metrics
+* Faster queries
 
 227 ms
 
@@ -115,17 +114,6 @@ GiST has the possibility of returning “false matches”
   WHERE "chapters"."district_id" = 2
   AND (to_tsvector('english', file_text) @@ to_tsquery('lunch'))
   Total query runtime: 227 ms.
-  4 rows retrieved.
-
-14 ms after query is cached
-
-  -- Executing query:
-  SELECT ("sections".*)
-  FROM "sections"
-  INNER JOIN "chapters" ON "sections"."chapter_id" = "chapters"."id"
-  WHERE "chapters"."district_id" = 2
-  AND (to_tsvector('english', file_text) @@ to_tsquery('lunch'))
-  Total query runtime: 14 ms.
   4 rows retrieved.
 
 * Keep learning about the software around you
